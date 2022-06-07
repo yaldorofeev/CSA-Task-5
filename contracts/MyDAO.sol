@@ -9,9 +9,12 @@ import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 contract MyDAO is AccessControl {
   using SafeERC20 for IERC20;
 
+  // Accessing role to propose votings
   bytes32 public constant CHAIR_ROLE = keccak256("CHAIR_ROLE");
 
   uint256 public minimumQuorum;
+
+  // Period of votings in hours
   uint256 public debatingPeriodDuration;
   address public voteTokenAddr;
 
@@ -52,13 +55,8 @@ contract MyDAO is AccessControl {
   // Mapping from users address to his voting balance
   mapping(address => uint256) votersBalance;
 
-  // Mapping from user that was delegeted to voting to that who delegeted
-  ?mapping(address => address) delegaters;?
-
   // Mapping from id to votings
   mapping(uint256 => Voting) votings;
-
-  mapping(uint256 => mapping(address => mapping(address => uint256))) whoDelegate;
 
   /* // Mapping from user to voting Ids in which he participated
   // (including delegated votings)
@@ -72,6 +70,11 @@ contract MyDAO is AccessControl {
   event Undeposit(
     address voter;
     uint256 amount;
+  );
+
+  event VotingOver(
+    uint256 votingId;
+    bool result;
   );
 
   constructor(address _chairPerson, address _voteTokenAddr,
@@ -128,7 +131,7 @@ contract MyDAO is AccessControl {
     vt.totalVotes = 0;
     vt.agreeVotes = 0;
     actualVotingsIds.push(votingId);
-  };
+  }
 
   function delegate(uint256 _votingId, address _to) public {
     require(votersBalance[msg.sender] != 0, "No tokens to vote");
@@ -140,7 +143,7 @@ contract MyDAO is AccessControl {
       "The votes are already delegated. Undelegate them to redelegate");
     vt.delegatedTotalBalance[_to] += votersBalance[msg.sender];
     vt.delegations[msg.sender] = _to;
-  };
+  }
 
   function unDelegate(uint256 _votingId) public {
     require(votersBalance[msg.sender] != 0, "No tokens to vote");
@@ -151,12 +154,14 @@ contract MyDAO is AccessControl {
     require(!vt.voters[delegator], "The voter already voted");
     vt.delegations[msg.sender] = address(0);
     vt.delegatedTotalBalance[_to] -= votersBalance[msg.sender];
-  };
+  }
 
   function vote(uint256 _votingId, bool _agree) public {
     require(votersBalance[msg.sender] != 0, "No tokens to vote");
     Voting storage vt = votings[votingId];
     require(vt.actual, "This voting is not actual");
+    require(block.timestamp < vt.startTime + debatingPeriodDuration * 1 hours,
+      "The time of voting is elapsed");
     require(!vt.voters[msg.sender], "The voter already voted");
     address delegator = vt.delegations[msg.sender];
     require(!vt.voters[delegator],
@@ -174,7 +179,40 @@ contract MyDAO is AccessControl {
     } else {
       vt.agreeVotes += amount;
     }
-  };
+  }
+
+  function finish(uint256 _votingId) public {
+    Voting storage vt = votings[votingId];
+    require(block.timestamp < vt.startTime + debatingPeriodDuration * 1 hours,
+      "The time of sale elapsed");
+    require(vt.totalVotes >= minimumQuorum,
+      "Not enougth votes for quorum");
+    if (vt.totalVotes - vt.agreeVotes >= vt.agreeVotes) {
+      vt.actual = false;
+      emit VotingOver(_votingId, false);
+    } else {
+      vt.recipient.call(abi.packegeEncode(vt.callData));
+      vt.actual = false;
+      emit VotingOver(_votingId, true);
+    }
+    for (uint i = 0; i < actualVotingsIds.length; i++) {
+      if (actualVotingsIds[i] == _votingId) {
+        actualVotingsIds[i] = actualVotingsIds[actualVotingsIds.length - 1];
+        actualVotingsIds.pop();
+        break;
+      }
+    }
+  }
+
+  function addChairMan(address newChairman) public {
+    require(msg.sender == address(this), "This function can be called only from voting");
+    _grantRole(CHAIR_ROLE, newChairman);
+  }
+
+  function removeChairMan(address chairMan) public {
+    require(msg.sender == address(this), "This function can be called only from voting");
+    _revokeRole(CHAIR_ROLE, chairMan);
+  }
 
   function onERC721Received(
     address,
