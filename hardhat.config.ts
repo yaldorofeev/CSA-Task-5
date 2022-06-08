@@ -3,12 +3,11 @@ import { task } from "hardhat/config";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-gas-reporter";
-import "hardhat-change-network";
 import "solidity-coverage";
-import "./tasks/swap.ts";
-import "./tasks/redeem.ts";
-import "./tasks/setercrole.ts";
-import "./tasks/connecterc.ts";
+// import "./tasks/swap.ts";
+// import "./tasks/redeem.ts";
+// import "./tasks/setercrole.ts";
+// import "./tasks/connecterc.ts";
 
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -52,7 +51,7 @@ export default {
       optimizer: {enabled: process.env.DEBUG ? false : true},
     },
   },
-  defaultNetwork: "bsc_testnet",
+  // defaultNetwork: "bsc_testnet",
   networks: {
     rinkeby: {
       url: process.env.RINKEBY_URL,
