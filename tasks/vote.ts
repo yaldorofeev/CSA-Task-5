@@ -10,7 +10,7 @@ task("vote", "Vote for preferred result")
   const accounts = await hre.ethers.getSigners();
 
   const myDAO = await hre.ethers.getContractAt("MyDAO",
-  process.env.DAO_CONTRACT, accounts[args.user]);
+  process.env.DAO_CONTRACT!, accounts[args.user]);
 
   let agree;
   if (args.vote == "yes") {
@@ -22,6 +22,6 @@ task("vote", "Vote for preferred result")
   }
 
   const tx = await myDAO.vote(args.votingid, agree);
-  ttx = tx.wait();
+  const ttx = tx.wait();
   console.log(ttx);
 });

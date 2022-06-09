@@ -50,6 +50,7 @@ describe("MyDAO", function () {
   const votingId_1 = 1;
   const votingId_2 = 2;
   const votingId_3 = 3;
+  const votingId_twice_2 = 4;
   const noVotingId = 10;
 
   let newPeriodAbi = [
@@ -306,6 +307,14 @@ describe("MyDAO", function () {
                                                         recipient,
                                                         description))
       .to.emit(myDAO, "NewVotingAdded").withArgs(votingId_3, description);
+
+    iface = new ethers.utils.Interface(addChairManAbi);
+    calldata = iface.encodeFunctionData("addChairMan", [chair_man_addr_2]);
+
+    await expect(myDAO.connect(chair_man_1).addProposal(calldata,
+                                                        recipient,
+                                                        description))
+      .to.emit(myDAO, "NewVotingAdded").withArgs(votingId_twice_2, description);
   });
 
   it("Test reverts of vote function", async function () {
@@ -487,11 +496,17 @@ describe("MyDAO", function () {
         .to.be.revertedWith("The time of voting is not elapsed");
     });
 
-    it("Revert when no quorum", async function () {
+    it("Pass when no quorum and revert becourse not actual", async function () {
       await ethers.provider.send('evm_increaseTime', [3600 * 18]);
       await ethers.provider.send('evm_mine', []);
+
+      const avl = await myDAO.connect(user_4).getActualVotingsIdsLength();
+      await myDAO.connect(user_4).finishProposal(votingId_1);
+      await myDAO.connect(user_4).getActualVotingsIdsLength();
+      expect(await myDAO.connect(user_4).getActualVotingsIdsLength()).to.be.equal(avl - 1);
+
       await expect(myDAO.connect(user_4).finishProposal(votingId_1))
-        .to.be.revertedWith("Not enougth votes for quorum");
+        .to.be.revertedWith("This voting is not actual");
     });
 
     it("Revert when called function failed (removeChairMan, becourse only one chairman)",
@@ -560,8 +575,8 @@ describe("MyDAO", function () {
         .to.emit(myDAO, "VotingOver").withArgs(votingId_1, false);
     });
 
-    it("Finish votingId_2(addChairMan) and then votingId_1(removeChairMan)\n"
-        + "with positive result", async function () {
+    it("Finish votingId_2(addChairMan) and votingId_twice_2 and then \n"
+        + "votingId_1(removeChairMan) with positive result", async function () {
 
       await network.provider.send("evm_revert", [snapShot]);
       snapShot = await network.provider.send("evm_snapshot");
@@ -582,11 +597,23 @@ describe("MyDAO", function () {
        .to.emit(myDAO, "Vote").withArgs(votingId_2, user_addr_3, true,
                                         user_votes_3);
 
-      await ethers.provider.send('evm_increaseTime', [3600 * 18]);
+      await expect(myDAO.connect(user_1).vote(votingId_twice_2, true))
+        .to.emit(myDAO, "Vote").withArgs(votingId_twice_2, user_addr_1, true,
+                                         user_votes_1);
+
+      await expect(myDAO.connect(user_3).vote(votingId_twice_2, true))
+       .to.emit(myDAO, "Vote").withArgs(votingId_twice_2, user_addr_3, true,
+                                        user_votes_3);
+
+
+      await ethers.provider.send('evm_increaseTime', [3600 * 24]);
       await ethers.provider.send('evm_mine', []);
 
       await expect(myDAO.connect(user_4).finishProposal(votingId_2))
         .to.emit(myDAO, "VotingOver").withArgs(votingId_2, true);
+
+      await expect(myDAO.connect(user_4).finishProposal(votingId_twice_2))
+        .to.be.revertedWith("ERROR call func");
 
       await expect(myDAO.connect(user_4).finishProposal(votingId_1))
         .to.emit(myDAO, "VotingOver").withArgs(votingId_1, true);

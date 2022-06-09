@@ -9,9 +9,9 @@ task("undelegate", "Undelegate votes")
   const accounts = await hre.ethers.getSigners();
 
   const myDAO = await hre.ethers.getContractAt("MyDAO",
-  process.env.DAO_CONTRACT, accounts[args.user]);
+  process.env.DAO_CONTRACT!, accounts[args.user]);
 
-  const tx = await myDAO.delegate(args.votingid);
-  ttx = tx.wait();
+  const tx = await myDAO.unDelegate(args.votingid);
+  const ttx = tx.wait();
   console.log(ttx);
 });

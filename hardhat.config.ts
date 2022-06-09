@@ -4,10 +4,13 @@ import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
-// import "./tasks/swap.ts";
-// import "./tasks/redeem.ts";
-// import "./tasks/setercrole.ts";
-// import "./tasks/connecterc.ts";
+import "./tasks/deposit.ts";
+import "./tasks/undeposit.ts";
+import "./tasks/addproposal.ts";
+import "./tasks/vote.ts";
+import "./tasks/finish.ts";
+import "./tasks/delegate.ts";
+import "./tasks/undelegate.ts";
 
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -51,7 +54,7 @@ export default {
       optimizer: {enabled: process.env.DEBUG ? false : true},
     },
   },
-  // defaultNetwork: "bsc_testnet",
+  defaultNetwork: "rinkeby",
   networks: {
     rinkeby: {
       url: process.env.RINKEBY_URL,
@@ -80,7 +83,7 @@ export default {
     currency: "USD",
   },
   etherscan: {
-    apiKey: process.env.BSCSCAN_API_KEY,
-    //apiKey: process.env.ETHERSCAN_API_KEY,
+    //apiKey: process.env.BSCSCAN_API_KEY,
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
 };

@@ -10,9 +10,9 @@ task("delegate", "Delegate decision making in voting to some person")
   const accounts = await hre.ethers.getSigners();
 
   const myDAO = await hre.ethers.getContractAt("MyDAO",
-  process.env.DAO_CONTRACT, accounts[args.user]);
+  process.env.DAO_CONTRACT!, accounts[args.user]);
 
   const tx = await myDAO.delegate(args.votingid, args.delegated);
-  ttx = tx.wait();
+  const ttx = tx.wait();
   console.log(ttx);
 });

@@ -69,7 +69,6 @@ contract SuperStaking {
 
   function stake(uint256 _amount) public {
     require(lPTokens.balanceOf(msg.sender) >= _amount, "Not enaught tokens");
-    address(lPTokens).delegatecall(abi.encodeWithSignature("transfer(address, uint256)", address(this), _amount));
     Stake_account storage sk = stakeAccounts[msg.sender];
     sk.total_amount += _amount;
     Stake memory st = Stake(
@@ -81,6 +80,8 @@ contract SuperStaking {
       }
     );
     sk.stakes.push(st);
+    (bool sucsess, ) = address(lPTokens).delegatecall(abi.encodeWithSignature("transfer(address, uint256)", address(this), _amount));
+    require(sucsess, "ERROR call transfer");
     emit StakeDone(msg.sender, _amount);
   }
 

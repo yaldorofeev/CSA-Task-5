@@ -12,15 +12,19 @@ contract MyDAO is AccessControl {
   // Accessing role to propose votings
   bytes32 public constant CHAIR_ROLE = keccak256("CHAIR_ROLE");
 
+  // Minimum quorum
   uint256 public minimumQuorum;
 
   // Period of votings in hours that assigned in constructor once
   uint256 public immutable debatingPeriodDuration;
 
+  // Address of voting tokens contract
   address public voteTokenAddr;
 
+  // Votind Id counter "can increment only"
   uint256 public votingCount;
 
+  // Charman counter
   uint256 public chairManCount;
 
   IERC20 voteToken;
@@ -53,17 +57,13 @@ contract MyDAO is AccessControl {
   }
 
   // Unordered array of actual votings
-  uint256[] actualVotingsIds;
+  uint256[] public actualVotingsIds;
 
   // Mapping from users address to his voting balance
   mapping(address => uint256) votersBalance;
 
   // Mapping from id to votings
   mapping(uint256 => Voting) public votings;
-
-  /* // Mapping from user to voting Ids in which he participated
-  // (including delegated votings)
-  mapping(address => uint256[]) participating; */
 
   /* *
    * @dev Emitted when 'voter' deposit `amount` of vote tokens to the contract
@@ -138,8 +138,8 @@ contract MyDAO is AccessControl {
    * @param _amount of deposited tokens
    */
   function deposit(uint256 _amount) public {
-    voteToken.safeTransferFrom(msg.sender, address(this), _amount);
     votersBalance[msg.sender] += _amount;
+    voteToken.safeTransferFrom(msg.sender, address(this), _amount);
     emit Deposit(msg.sender, _amount);
   }
 
@@ -162,8 +162,8 @@ contract MyDAO is AccessControl {
         vt.delegatedTotalBalance[delegator] -= votersBalance[msg.sender];
       }
     }
-    voteToken.safeTransfer(msg.sender, _amount);
     votersBalance[msg.sender] -= _amount;
+    voteToken.safeTransfer(msg.sender, _amount);
     emit Undeposit(msg.sender, _amount);
   }
 
@@ -190,6 +190,11 @@ contract MyDAO is AccessControl {
     emit NewVotingAdded(votingId, _description);
   }
 
+  /**
+   * @dev Delegate votes to some person. That person should have voting tokens.
+   * @param _votingId of voting for votes delegated
+   * @param _to: address to whom delegated
+   */
   function delegate(uint256 _votingId, address _to) public {
     require(votersBalance[msg.sender] != 0, "No tokens to vote");
     require(votersBalance[_to] != 0, "This accaunt can not vote");
@@ -197,8 +202,8 @@ contract MyDAO is AccessControl {
     Voting storage vt = votings[_votingId];
     require(vt.actual, "This voting is not actual");
     require(!vt.voters[_to], "The voter already voted");
-    address sideDelegator = vt.delegations[_to];
-    require(!vt.voters[sideDelegator],
+    address sideDelegated = vt.delegations[_to];
+    require(!vt.voters[sideDelegated],
       "This voter delegate his votes to some voter and that voter already voted");
     require(vt.delegations[msg.sender] == address(0),
       "The votes are already delegated. Undelegate them to redelegate");
@@ -206,17 +211,26 @@ contract MyDAO is AccessControl {
     vt.delegations[msg.sender] = _to;
   }
 
+  /**
+   * @dev Undelegate votes.
+   * @param _votingId of voting for votes undelegated
+   */
   function unDelegate(uint256 _votingId) public {
     require(votersBalance[msg.sender] != 0, "No tokens to vote");
     Voting storage vt = votings[_votingId];
     require(vt.actual, "This voting is not actual");
-    address delegator = vt.delegations[msg.sender];
-    require(delegator != address(0), "Nothing to undelegate");
-    require(!vt.voters[delegator], "The voter already voted");
+    address delegated = vt.delegations[msg.sender];
+    require(delegated != address(0), "Nothing to undelegate");
+    require(!vt.voters[delegated], "The voter already voted");
     vt.delegations[msg.sender] = address(0);
-    vt.delegatedTotalBalance[delegator] -= votersBalance[msg.sender];
+    vt.delegatedTotalBalance[delegated] -= votersBalance[msg.sender];
   }
 
+  /**
+   * @dev Vote for proposal.
+   * @param _votingId of voting.
+   * @param _agree: agreement or disagreement for a proposal
+   */
   function vote(uint256 _votingId, bool _agree) public {
     require(votersBalance[msg.sender] != 0, "No tokens to vote");
     Voting storage vt = votings[_votingId];
@@ -227,13 +241,13 @@ contract MyDAO is AccessControl {
     address delegator = vt.delegations[msg.sender];
     require(!vt.voters[delegator],
       "The voter delegate his votes and delegator already voted");
+    vt.voters[msg.sender] = true;
     if (delegator != address(0)) {
       vt.delegatedTotalBalance[delegator] -= votersBalance[msg.sender];
     }
     vt.delegations[msg.sender] = address(0);
     uint256 amount = votersBalance[msg.sender];
     amount += vt.delegatedTotalBalance[msg.sender];
-    vt.voters[msg.sender] = true;
     if (_agree) {
       vt.totalVotes += amount;
       vt.agreeVotes += amount;
@@ -243,20 +257,24 @@ contract MyDAO is AccessControl {
     emit Vote(_votingId, msg.sender, _agree, amount);
   }
 
+  /**
+   * @dev Finish voting for proposal. Anybody can call this function.
+   * @param _votingId of voting.
+   */
   function finishProposal(uint256 _votingId) public {
     Voting storage vt = votings[_votingId];
+    require(vt.actual, "This voting is not actual");
     require(block.timestamp > vt.startTime + debatingPeriodDuration * 1 hours,
       "The time of voting is not elapsed");
-    require(vt.totalVotes >= minimumQuorum,
-      "Not enougth votes for quorum");
-    if (vt.totalVotes - vt.agreeVotes >= vt.agreeVotes) {
-      vt.actual = false;
-      emit VotingOver(_votingId, false);
-    } else {
-      (bool sucsess, ) = vt.recipient.call(vt.callData);
-      require(sucsess, "ERROR call func");
-      vt.actual = false;
-      emit VotingOver(_votingId, true);
+    vt.actual = false;
+    if (vt.totalVotes >= minimumQuorum) {
+      if (vt.totalVotes - vt.agreeVotes >= vt.agreeVotes) {
+        emit VotingOver(_votingId, false);
+      } else {
+        (bool sucsess, ) = vt.recipient.call(vt.callData);
+        require(sucsess, "ERROR call func");
+        emit VotingOver(_votingId, true);
+      }
     }
     for (uint i = 0; i < actualVotingsIds.length; i++) {
       if (actualVotingsIds[i] == _votingId) {
@@ -267,41 +285,47 @@ contract MyDAO is AccessControl {
     }
   }
 
+  /**
+   * @dev Function for adding new chairman of votings. The function can be called
+   * only from the contract by finishing appropriate voting.
+   * In case of reentrancy by group of voters (and some chairman) the maximum
+   * demadge is that the dublicated votings will remain aqtual forever.
+   * @param newChairman address.
+   */
   function addChairMan(address newChairman) public {
     require(msg.sender == address(this), "This function can be called only from voting");
-    _grantRole(CHAIR_ROLE, newChairman);
+    require(!hasRole(CHAIR_ROLE, newChairman));
     chairManCount += 1;
+    _grantRole(CHAIR_ROLE, newChairman);
   }
 
+  /**
+   * @dev Function for removing chairman of votings. There must be more than one
+   * chairman in contract to call the function. The function can be called
+   * only from the contract by finishing appropriate voting.
+   * @param chairMan address for remove.
+   */
   function removeChairMan(address chairMan) public {
     require(msg.sender == address(this), "This function can be called only from voting");
     require(chairManCount > 1, "Can not leave contract without chairman");
-    _revokeRole(CHAIR_ROLE, chairMan);
     chairManCount -= 1;
+    _revokeRole(CHAIR_ROLE, chairMan);
   }
 
+  /**
+   * @dev Function for reset minimum quorum. The function can be called
+   * only from the contract by finishing appropriate voting.
+   * @param newQuorum.
+   */
   function resetMinimumQuorum(uint256 newQuorum) public {
     require(msg.sender == address(this), "This function can be called only from voting");
     minimumQuorum = newQuorum;
   }
 
-  /* function onERC721Received(
-    address,
-    address,
-    uint256,
-    bytes calldata
-    )external returns(bytes4) {
-    return bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
+  /**
+   * @dev Getter for actual votings array length
+   */
+  function getActualVotingsIdsLength() public view returns(uint256) {
+    return actualVotingsIds.length;
   }
-
-  function onERC1155Received(
-    address,
-    address,
-    uint256,
-    uint256,
-    bytes calldata
-    )external returns(bytes4) {
-    return bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"));
-  } */
-
 }

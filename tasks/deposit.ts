@@ -9,14 +9,14 @@ task("deposit", "Deposits tokens on MyDAO")
   const accounts = await hre.ethers.getSigners();
 
   const myERC20= await hre.ethers.getContractAt("MyERC20Contract",
-  process.env.ERC20_CONTRACT, accounts[args.user]);
+  process.env.ERC20_CONTRACT!, accounts[args.user]);
 
-  await myERC20.approve(process.env.DAO_CONTRACT, args.amount);
+  await myERC20.approve(process.env.DAO_CONTRACT!, args.amount);
 
   const myDAO = await hre.ethers.getContractAt("MyDAO",
-  process.env.DAO_CONTRACT, accounts[args.user]);
+  process.env.DAO_CONTRACT!, accounts[args.user]);
 
   const tx = await myDAO.deposit(args.amount);
-  ttx = tx.wait();
+  const ttx = tx.wait();
   console.log(ttx);
 });
