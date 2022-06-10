@@ -22,6 +22,6 @@ task("vote", "Vote for preferred result")
   }
 
   const tx = await myDAO.vote(args.votingid, agree);
-  const ttx = tx.wait();
+  const ttx = await tx.wait();
   console.log(ttx);
 });

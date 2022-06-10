@@ -12,6 +12,6 @@ task("finish", "Undelegate votes")
   process.env.DAO_CONTRACT!, accounts[args.user]);
 
   const tx = await myDAO.finishProposal(args.votingid);
-  const ttx = tx.wait();
+  const ttx = await tx.wait();
   console.log(ttx);
 });

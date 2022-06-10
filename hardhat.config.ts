@@ -11,6 +11,9 @@ import "./tasks/vote.ts";
 import "./tasks/finish.ts";
 import "./tasks/delegate.ts";
 import "./tasks/undelegate.ts";
+import "./tasks/mint.ts";
+import "./tasks/grantroleerc.ts";
+
 
 
 // This is a sample Hardhat task. To learn how to create your own go to
