@@ -1,5 +1,5 @@
 [
-  {
+  [{
     "inputs": [
       {
         "internalType": "uint256",
@@ -11,5 +11,7 @@
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
-  }
+  }],
+  "changeRewardPeriod",
+  90
 ]

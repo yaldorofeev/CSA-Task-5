@@ -14,15 +14,22 @@ task("addproposal", "Deposits tokens on MyDAO")
   const myDAO = await hre.ethers.getContractAt("MyDAO",
   process.env.DAO_CONTRACT!, accounts[args.user]);
 
-  let data = await fs.readFileSync(args.calldatafile);
-  const abi = JSON.parse(data.toString());
+  const file = await fs.readFileSync(args.calldatafile);
+  const data = JSON.parse(file.toString());
+  const abi = data[0];
+  const funcname = data[1];
+  const param = parseInt(data[2]);
+
   const iface = new hre.ethers.utils.Interface(abi);
-  const calldata = iface.encodeFunctionData("changeRewardPeriod",[90]);
+  const calldata = iface.encodeFunctionData(funcname, [param]);
 
-  // console.log(abi);
+  const description = JSON.stringify({contract: args.recipient,
+                                      function: funcname,
+                                      newParametr: param,
+                                      description: args.description});
+  console.log(description);
 
-
-  const tx = await myDAO.addProposal(data, args.recipient, args.description);
+  const tx = await myDAO.addProposal(calldata, args.recipient, description);
   const ttx = await tx.wait();
   console.log(ttx);
 });

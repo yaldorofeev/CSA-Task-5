@@ -13,6 +13,7 @@ import "./tasks/delegate.ts";
 import "./tasks/undelegate.ts";
 import "./tasks/mint.ts";
 import "./tasks/grantroleerc.ts";
+import "./tasks/readdata.ts";
 
 
 
