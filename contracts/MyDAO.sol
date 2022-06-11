@@ -60,7 +60,7 @@ contract MyDAO is AccessControl {
   uint256[] public actualVotingsIds;
 
   // Mapping from users address to his voting balance
-  mapping(address => uint256) votersBalance;
+  mapping(address => uint256) public votersBalance;
 
   // Mapping from id to votings
   mapping(uint256 => Voting) public votings;
